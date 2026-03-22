@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nearby Clinics</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+    .bounce {
+        animation: bounce 0.6s infinite alternate;
+    }
+
+    @keyframes bounce {
+        from { transform: translateY(0); }
+        to { transform: translateY(-10px); }
+    }
+    </style>
+</head>
+<body>
+
+<h2>Find Nearby Clinics</h2>
+<button onclick="getLocation()">Find Clinics Near Me</button>
+
+<div id="map" style="height: 500px;"></div>
+
+<script>
+    var map = L.map('map').setView([19.07, 72.87], 13);
+
+    var clinicIcon = L.icon({
+        iconUrl: "/static/dropit.png",
+        iconSize: [40, 40],
+        iconAnchor: [20, 40]    
+        // popupAnchor: [0, -41]
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    function loadAllClinics() {
+        fetch(`/all_clinics`)  // default center
+            .then(res => res.json())
+            .then(data => {
+                data.forEach(clinic => {
+                    L.marker([clinic.lat, clinic.lon], { icon: clinicIcon })
+                        .addTo(map)
+                        .bindPopup(clinic.name);
+                });
+            });
+    }
+
+    function getLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(showPosition);
+        } else {
+            alert("Geolocation not supported");
+        }
+    }
+
+    function showPosition(position) {
+        let lat = position.coords.latitude;
+        let lon = position.coords.longitude;
+
+        // show user marker
+        L.marker([lat, lon]).addTo(map)
+            .bindPopup("You are here")
+            .openPopup();
+
+        map.setView([lat, lon], 12);
+
+        // call backend
+
+        fetch(`/find_clinics?lat=${lat}&lon=${lon}`)
+            .then(res => res.json())
+            .then(data => {
+
+                data.forEach((clinic, index) => {
+
+                    let marker = L.marker([clinic.lat, clinic.lon], { icon: clinicIcon })
+                        .addTo(map)
+                        .bindPopup(clinic.name);
+
+                    // Animate top 3
+                    if (index < 3) {
+                        marker.bindPopup("⭐ " + clinic.name).openPopup();
+
+                        // bounce effect
+                        marker._icon.classList.add("bounce");
+                    }
+                });
+            });
+    }
+    loadAllClinics();
+</script>
+
+</body>
+</html>
